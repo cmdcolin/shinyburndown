@@ -4,11 +4,23 @@ library(gh)
 library(shiny)
 
 
+global_size = 10
+
+
 # Define the UI
-ui <- bootstrapPage(textInput("orgrepo", "Enter org name, then slash, then repo name",
-  ""), submitButton(text = "Submit"), plotOutput("plot1"), plotOutput("plot2"),
-  plotOutput("plot3"), plotOutput("plot4"), plotOutput("plot5"), plotOutput("plot6"),
-  dataTableOutput("table"))
+ui <- bootstrapPage(
+  textInput("orgrepo", "Enter org name, then slash, then repo name", ""),
+  submitButton(text = "Submit"),
+  fluidRow(column(8,tabsetPanel(type = "tabs",
+              tabPanel("Plot 1", plotOutput("plot1")),
+              tabPanel("Plot 2", plotOutput("plot2")),
+              tabPanel("Plot 3", plotOutput("plot3")),
+              tabPanel("Plot 4", plotOutput("plot4")),
+              tabPanel("Plot 5", plotOutput("plot5")),
+              tabPanel("Plot 6", plotOutput("plot6")),
+              tabPanel("Table", tableOutput("table")))
+  ))
+)
 
 # Define the server code
 server <- function(input, output) {
@@ -58,13 +70,15 @@ server <- function(input, output) {
     data.frame(start, end, title, start_date, end_date, months, number)
   })
 
+
+
   output$plot1 <- renderPlot({
     if (input$orgrepo != "") {
       my_table = fetchGithubTable()
       ggplot(my_table) + geom_linerange(aes(ymin = end_date, ymax = start_date,
         x = months, color = number, size = I(1), text = title)) + scale_color_gradientn(colours = rainbow(5)) +
         theme_bw() + theme(panel.grid = element_blank()) + xlab("Months taken") +
-        ylab("Time taken to close issue") + ggtitle("Issues completed over time")
+        ylab("Time taken to close issue") + ggtitle("Issues completed over time")++  theme_classic(base_size = global_size)
     } else {
       title("Waiting for input...")
     }
@@ -112,7 +126,13 @@ server <- function(input, output) {
   output$plot5 <- renderPlot({
     if (input$orgrepo != "") {
       my_table = fetchGithubTable()
-      qplot(months, data = my_table) + scale_y_log10() + theme_bw() + theme(panel.grid = element_blank())
+      qplot(months, data = my_table) +
+        scale_y_log10() +
+        theme_bw() +
+        theme(panel.grid = element_blank()) +
+        xlab("Months taken to complete") +
+        ylab("#issues that took this long to complete") +
+        ggtitle("Binned distribution of time taken to complete issues")
     } else {
       title("Waiting for input...")
     }
