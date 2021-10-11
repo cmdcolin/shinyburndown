@@ -15,13 +15,13 @@ ui <- fluidPage(
   textInput("orgrepo", "Enter org/repo e.g. GMOD/bam-js. Note that repos with many issues will take awhile to complete and may exhaust API call limits", "GMOD/bam-js"),
   submitButton(text = "Submit"),
   fluidRow(column(8,tabsetPanel(type = "tabs",
-              tabPanel("Plot 1", plotlyOutput("plot1")),
-              tabPanel("Plot 2", plotlyOutput("plot2")),
+              tabPanel("Plot 1", div(p("Note: hover over top of bar for tooltip"),plotlyOutput("plot1"))),
+              tabPanel("Plot 2", div(p("Note: hover over top of bar for tooltip"),plotlyOutput("plot2"))),
               tabPanel("Plot 3", plotlyOutput("plot3")),
               tabPanel("Plot 4", plotlyOutput("plot4")),
               tabPanel("Plot 5", plotlyOutput("plot5")),
               tabPanel("Plot 6", plotlyOutput("plot6")),
-              tabPanel("Table", tableOutput("table")))
+              tabPanel("Longest issues",  dataTableOutput("table")))
   ))
 )
 
@@ -29,7 +29,7 @@ ui <- fluidPage(
 server <- function(input, output) {
   fetchGithubTable = reactive({
     if (input$orgrepo == '') {
-      data.frame(start=character(), end=character(), title=character(), start_date=character(), end_date=character(), months=character(), number=character(),stringsAsFactors = F)
+      data.frame(start=character(), end=character(), title=character(), start_date=character(), end_date=character(), months=character(), issue_number=character(),stringsAsFactors = F)
     } else {
       res = c()
       data = NULL
@@ -61,7 +61,7 @@ server <- function(input, output) {
       created_at = sapply(res, function(row) {
         row[["created_at"]]
       })
-      number = sapply(res, function(row) {
+      issue_number = sapply(res, function(row) {
         row[["number"]]
       })
 
@@ -73,7 +73,7 @@ server <- function(input, output) {
       end_date = as.Date(end)
       months = as.numeric(end_date - start_date)/30
 
-      data.frame(start, end, title, start_date, end_date, months, number)
+      data.frame(start, end, title, start_date, end_date, months, issue_number)
     }
   })
 
@@ -82,7 +82,7 @@ server <- function(input, output) {
   output$plot1 <- renderPlotly({
     my_table = fetchGithubTable()
     p<-ggplot(my_table) +
-      geom_linerange(aes(ymin = end_date, ymax = start_date, x = months, color = number, size = I(1), text = title)) +
+      geom_linerange(aes(ymin = end_date, ymax = start_date, x = months, color = issue_number, size = I(1), text = title)) +
       scale_color_gradientn(colours = rainbow(5)) +
       theme_bw() +
       theme(panel.grid = element_blank()) +
@@ -90,21 +90,21 @@ server <- function(input, output) {
       ylab("Time span that issue covered") +
       ggtitle("Months to complete vs Time span that issue covered") +
       theme_classic(base_size = global_size)
-    plotly::ggplotly(p)
+    plotly::ggplotly(p,width=1000,height=600)
   })
 
   output$plot2 <- renderPlotly({
-      my_table = fetchGithubTable()
-      p<-ggplot(my_table) +
-        geom_linerange(aes(ymin = end_date, ymax = start_date, x = number, color = months, text = title, size = I(1))) +
-        scale_color_gradientn(colours = rainbow(5)) +
-        theme_bw() +
-        theme(panel.grid = element_blank()) +
-        xlab("Issue number") +
-        ylab("Time taken to close issue") +
-        ggtitle("Issues completed over time") +
-        theme_classic(base_size = global_size)
-      plotly::ggplotly(p)
+    my_table = fetchGithubTable()
+    p<-ggplot(my_table) +
+      geom_linerange(aes(ymin = end_date, ymax = start_date, x = issue_number, color = months, text = title, size = I(1))) +
+      scale_color_gradientn(colours = rainbow(5)) +
+      theme_bw() +
+      theme(panel.grid = element_blank()) +
+      xlab("Issue number") +
+      ylab("Time taken to close issue") +
+      ggtitle("Issues completed over time") +
+      theme_classic(base_size = global_size)
+    plotly::ggplotly(p,width=1000,height=600)
 
   })
 
@@ -112,7 +112,7 @@ server <- function(input, output) {
   output$plot3 <- renderPlotly({
     my_table = fetchGithubTable()
     p<-ggplot(my_table) +
-      geom_point(aes(y = months, x = end_date, color = number,
+      geom_point(aes(y = months, x = end_date, color = issue_number,
       text = title, size = I(1))) +
       scale_color_gradientn(colours = rainbow(5)) +
       theme_bw() +
@@ -121,14 +121,14 @@ server <- function(input, output) {
       ylab("Months taken to finish") +
       ggtitle("Issue number vs Time taken to complete") +
       theme_classic(base_size = global_size)
-    plotly::ggplotly(p)
+    plotly::ggplotly(p,width=1000,height=600)
   })
 
 
 
   output$plot4 <- renderPlotly({
     my_table = fetchGithubTable()
-    p<-ggplot(my_table) + geom_point(aes(y = number, x = end_date, color = months,
+    p<-ggplot(my_table) + geom_point(aes(y = issue_number, x = end_date, color = months,
       text = title, size = I(1))) + scale_color_gradientn(colours = rainbow(5)) +
       theme_bw() +
       theme(panel.grid = element_blank()) +
@@ -136,7 +136,7 @@ server <- function(input, output) {
       ylab("Issue number") +
       ggtitle("Issue close date vs Issue number") +
       theme_classic(base_size = global_size)
-    plotly::ggplotly(p)
+    plotly::ggplotly(p,width=1000,height=600)
   })
 
   output$plot5 <- renderPlotly({
@@ -149,7 +149,7 @@ server <- function(input, output) {
       ylab("log10(#issues in bin)") +
       ggtitle("Binned distribution of time taken to complete issues") +
       theme_classic(base_size = global_size)
-    plotly::ggplotly(p)
+    plotly::ggplotly(p,width=1000,height=600)
   })
 
 
@@ -173,17 +173,16 @@ server <- function(input, output) {
       xlab("Time") +
       ggtitle("Total issues open at any given time") +
       theme_classic(base_size = global_size)
-    plotly::ggplotly(p)
+    plotly::ggplotly(p,width=1000,height=600)
   })
-
-
 
 
   output$table <- renderDataTable({
     my_table = fetchGithubTable()
-    format(head(my_table[order(-my_table$months), c("number", "title", "months")],
+    format(head(my_table[order(-my_table$months), c("issue_number", "title", "months")],
       n = 100), digits = 2)
   })
+
 }
 
 
