@@ -22,7 +22,7 @@ ui <- bootstrapPage(
 
 # Define the server code
 server <- function (input, output) {
-  table = reactive({
+  fetchGithubTable = reactive({
     res = c()
     data = NULL
     len = 1
@@ -34,7 +34,7 @@ server <- function (input, output) {
         print(-time)
         Sys.sleep(-time)
       }
-      data = gh(paste("GET /repos/", input$orgrepo, "/issues?state=all"), page = page)
+      data = gh(paste("GET /repos/", input$orgrepo, "/issues?state=all", sep=''), page = page)
       page = page + 1
       res = c(res, data)
       len = length(data)
@@ -56,20 +56,20 @@ server <- function (input, output) {
       row[['number']]
     })
 
-    start < -ymd_hms(created_at)
-    end < -sapply(closed_at, function (x) {
+    start = ymd_hms(created_at)
+    end = sapply(closed_at, function (x) {
       ifelse(is.null(x), ymd_hms(x), x)
     })
-    start_date < -as.Date(start)
-    end_date < -as.Date(end)
-    months < -as.numeric(end_date - start_date) / 30
+    start_date = as.Date(start)
+    end_date = as.Date(end)
+    months = as.numeric(end_date - start_date) / 30
 
-    my_table = data.frame(start, end, title, start_date, end_date, months, number)
+    data.frame(start, end, title, start_date, end_date, months, number)
   })
 
   output$plot1 <- renderPlot({
     if (input$orgrepo != '') {
-      ggplot(my_table) + geom_linerange(aes(
+      ggplot(fetchGithubTable()) + geom_linerange(aes(
           ymin = end_date,
           ymax = start_date,
           x = months,
@@ -90,7 +90,7 @@ server <- function (input, output) {
 
   output$plot2 <- renderPlot({
     if (input$orgrepo != '') {
-      ggplot(my_table) + geom_linerange(aes(
+      ggplot(fetchGithubTable()) + geom_linerange(aes(
           ymin = end_date,
           ymax = start_date,
           x = number,
@@ -109,9 +109,10 @@ server <- function (input, output) {
     }
   })
 
-  output$table <- renderDataTable(
+  output$table <- renderDataTable({
+    my_table = fetchGithubTable()
     format(head(my_table[order(-my_table$months), c("number", "title", "months")], n = 100), digits = 2)
-  )
+  })
 }
 
 
