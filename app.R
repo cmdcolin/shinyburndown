@@ -12,16 +12,19 @@ global_size = 18
 # Define the UI
 ui <- fluidPage(
   titlePanel("Issue burndown charts"),
+  a(href="https://github.com/cmdcolin/shinyburndown","Source code repo"),
+  br(),
   textInput("orgrepo", "Enter org/repo e.g. GMOD/bam-js. Note that repos with many issues will take awhile to complete and may exhaust API call limits", "GMOD/bam-js"),
+  textInput("token", "Optional custom token. Please use if submitting large calls jobs. See https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token turn on \"repos\" access", ""),
   submitButton(text = "Submit"),
   fluidRow(column(8,tabsetPanel(type = "tabs",
-              tabPanel("Plot 1", div(p("Note: hover over top of bar for tooltip"),plotlyOutput("plot1"))),
-              tabPanel("Plot 2", div(p("Note: hover over top of bar for tooltip"),plotlyOutput("plot2"))),
-              tabPanel("Plot 3", plotlyOutput("plot3")),
-              tabPanel("Plot 4", plotlyOutput("plot4")),
-              tabPanel("Plot 5", plotlyOutput("plot5")),
-              tabPanel("Plot 6", plotlyOutput("plot6")),
-              tabPanel("Longest issues",  dataTableOutput("table")))
+    tabPanel("Plot 1", div(p("Note: hover over top of bar for tooltip"),plotlyOutput("plot1"))),
+    tabPanel("Plot 2", div(p("Note: hover over top of bar for tooltip"),plotlyOutput("plot2"))),
+    tabPanel("Plot 3", plotlyOutput("plot3")),
+    tabPanel("Plot 4", plotlyOutput("plot4")),
+    tabPanel("Plot 5", plotlyOutput("plot5")),
+    tabPanel("Plot 6", plotlyOutput("plot6")),
+    tabPanel("Table",  dataTableOutput("table")))
   ))
 )
 
@@ -36,14 +39,21 @@ server <- function(input, output) {
       len = 1
       page = 1
       while (len != 0) {
-        result = gh_rate_limit()
+        if(input$token!='') {
+          result = gh_rate_limit(.token=input$token)
+        } else {
+          result = gh_rate_limit()
+        }
         if (result$remaining == 0) {
           time = as.numeric(difftime(Sys.time(), result$reset, units = "secs"))
           print(-time)
           Sys.sleep(-time)
         }
-        data = gh(paste("GET /repos/", input$orgrepo, "/issues?state=all", sep = ""),
-          page = page)
+        if(input$token!='') {
+          data=gh(paste("GET /repos/", input$orgrepo, "/issues?state=all", sep = ""),page = page,.token=input$token)
+        } else {
+          data=gh(paste("GET /repos/", input$orgrepo, "/issues?state=all", sep = ""),page = page)
+        }
         page = page + 1
         res = c(res, data)
         len = length(data)
