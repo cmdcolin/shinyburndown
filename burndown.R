@@ -1,14 +1,38 @@
-
-# step 1 run `npm install -g github-csv-tools`
-# step 2 run `githubCsvTools -f file.csv`
 library(ggplot2)
 library(lubridate)
-mytable <- read.csv("file.csv")
-mytable$start <- ymd_hms(mytable$created_at)
-mytable$end <- ymd_hms(mytable$closed_at)
-mytable$start_date <- as.Date(mytable$start)
-mytable$end_date <- as.Date(mytable$end)
-mytable$months <- as.numeric(mytable$end_date - mytable$start_date) / 30
+library(gh)
+
+res = c()
+data=NULL
+len=1
+page=1
+while(len!=0) {
+  result = gh_rate_limit()
+  if(result$remaining==0) {
+    time = as.numeric(difftime(Sys.time(),result$reset,units="secs"))
+    print(-time)
+    Sys.sleep(-time)
+  }
+  data = gh("GET /repos/GMOD/jbrowse-components/issues?state=all",page=page)
+  page=page+1
+  res=c(res,data)
+  len=length(data)
+  print(page)
+}
+
+
+title = sapply(res, function(row) { row[['title']] })
+closed_at = sapply(res, function(row) { row[['closed_at']] })
+created_at = sapply(res, function(row) { row[['created_at']] })
+number = sapply(res, function(row) { row[['number']] })
+
+start <- ymd_hms(created_at)
+end <- sapply(closed_at,function(x) { ifelse(is.null(x),ymd_hms(x),x) })
+start_date <- as.Date(start)
+end_date <- as.Date(end)
+months <- as.numeric(end_date - start_date) / 30
+
+my_table=data.frame(start,end,title,start_date,end_date,months,number)
 
 write.table(
   format(
@@ -36,7 +60,7 @@ p<-ggplot(mytable) + geom_linerange(aes(
   theme(panel.grid = element_blank()) +
   xlab("Months taken") +
   ylab("Time taken to close issue") +
-  ggtitle("completed issues gantt chart")
+  ggtitle("Issues completed over time")
 
 
 l<-plotly::ggplotly(p)
@@ -59,6 +83,8 @@ p<-ggplot(mytable) + geom_linerange(aes(
   theme(panel.grid = element_blank()) +
   xlab("Issue number") +
   ylab("Time taken to close issue") +
+  ggtitle("Issues completed over time")
+
 
 
 l<-plotly::ggplotly(p)
@@ -130,7 +156,7 @@ p<-qplot(days, total, data = mytable2) +
   theme_bw() +
   theme(panel.grid = element_blank()) +
   ylab("Issues open") +
-  ggtitle("total issues open over time")
+  ggtitle("Total issues open at any given time")
 
 l<-plotly::ggplotly(p)
 ggsave("burndown.png",p)
